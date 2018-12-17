@@ -5,7 +5,7 @@ from torch import nn
 from torch import optim
 import torch.nn.functional as F
 
-DEBUG = True
+DEBUG = False
 test_dir = '/home/chli4934/UsydCodeLab/phd/MrfEvent/OldCode/src/test/'
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")

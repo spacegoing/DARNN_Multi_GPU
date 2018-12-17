@@ -94,6 +94,8 @@ parser.add_argument(
 parser.add_argument('--seed', default=1, type=int, help='manual seed')
 
 if __name__ == "__main__":
+  # import os
+  # os.environ['CUDA_VISIBLE_DEVICES'] = '0'
   opt = parser.parse_args('')
 
   dataset = Nas100Dataset()
@@ -106,9 +108,9 @@ if __name__ == "__main__":
   # device = ('cpu')
   # Multi-GPU Support
   device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-  if torch.cuda.device_count() > 1:
-    encoder = nn.DataParallel(encoder)
-    decoder = nn.DataParallel(decoder)
+  # if torch.cuda.device_count() > 1:
+  #   encoder = nn.DataParallel(encoder)
+  #   decoder = nn.DataParallel(decoder)
   encoder.to(device)
   decoder.to(device)
 
