@@ -10,24 +10,12 @@ import numpy as np
 from sklearn.preprocessing import MinMaxScaler
 
 wcsi_path = '../../csi300/csi300_20150130.csv'
-wcsi_df = pd.read_csv(
-    wcsi_path,
-    dtype={
-        'date': np.str,
-        'con_code': np.str,
-        'weight': np.float,
-        'stock_code': np.str,
-        'mkt': np.str,
-        'filename': np.str
-    })
-wcsi_df.index = wcsi_df['con_code']
 year_list = [2015, 2016, 2017]
 csi_dir = [
     '/project/chli/scp/CSI300/Stk_1F_2015/',
     '/project/chli/scp/CSI300/Stk_1F_2016/',
     '/project/chli/scp/CSI300/Stk_1F_2017/'
 ]
-
 norm_csi_dir = '/project/chli/scp/CSI300_NORM/'
 
 
@@ -70,20 +58,32 @@ def norm_stock(stock_code, debug=False):
 
 
 # Generate CSI300 Normalized Dataset
-wcsi_df.con_code.apply(norm_stock)
+def gen_csi_norm():
+  wcsi_df = pd.read_csv(
+      wcsi_path,
+      dtype={
+          'date': np.str,
+          'con_code': np.str,
+          'weight': np.float,
+          'stock_code': np.str,
+          'mkt': np.str,
+          'filename': np.str
+      })
+  wcsi_df.index = wcsi_df['con_code']
+  wcsi_df.con_code.apply(norm_stock)
+
 
 # Aggregate stocks files to one giant file
-df_list = []
+def concat_stockcsvfiles_to_onecsi():
+  df_list = []
 
+  def read_stock(con_code):
+    tdf = pd.read_csv(csi_dir + con_code + '.csv', index_col='datetime')
+    df_list.append(tdf)
 
-def read_stock(con_code):
-  tdf = pd.read_csv(csi_dir + con_code + '.csv', index_col='datetime')
-  df_list.append(tdf)
-
-
-wcsi_df['con_code'].apply(read_stock)
-df = pd.concat(df_list, keys=wcsi_df['con_code'])
-df.to_csv(norm_csi_dir + 'csi300norm.csv')
+  wcsi_df['con_code'].apply(read_stock)
+  df = pd.concat(df_list, keys=wcsi_df['con_code'])
+  df.to_csv(norm_csi_dir + 'csi300norm.csv')
 
 
 # Generate shifted lagging dataset (grouped by date)
@@ -105,6 +105,7 @@ def gen_lag_pred_norm_csi300(tdf, lag_steps, pred_steps):
         gen_date_level, lag_steps=lag_steps, pred_steps=pred_steps)
     # drop con_code [0] and date [1] index assigned by goupby
     stock_df.index = stock_df.index.droplevel([0, 1])
+    print(df.name, lag_steps, pred_steps)
     return stock_df
 
   train_df = tdf.groupby(level=0).apply(
@@ -118,8 +119,10 @@ def gen_lag_pred_norm_csi300(tdf, lag_steps, pred_steps):
 
 
 if __name__ == "__main__":
-  lag_steps = 10
-  pred_steps = 2
+  # Generate Training Set
+  lag_pred = [(10, 1), (10, 2), (10, 5), (15, 1), (15, 2), (15, 5), (20, 1),
+              (20, 2), (20, 5), (20, 10)]
+  lag_steps, pred_steps = lag_pred[0]
   tdf = pd.read_csv(
       norm_csi_dir + 'csi300norm.csv',
       parse_dates=['datetime']).set_index(['con_code', 'datetime'])
