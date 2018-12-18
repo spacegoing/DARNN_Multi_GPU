@@ -8,7 +8,11 @@ CSI300 constitution stock and weight are according to csi300_20150130.csv
 import pandas as pd
 import numpy as np
 from sklearn.preprocessing import MinMaxScaler
+from pymongo import MongoClient
 
+client = MongoClient('mongodb://localhost:27017/')
+db = client['CSI300']
+col = db['CSI300_Meta']
 wcsi_path = '../../csi300/csi300_20150130.csv'
 year_list = [2015, 2016, 2017]
 csi_dir = [
@@ -19,14 +23,29 @@ csi_dir = [
 norm_csi_dir = '/project/chli/scp/CSI300_NORM/'
 
 
-def date_norm(x):
-  date_scaler = MinMaxScaler((-1, 1))
-  date_scaler.fit(x)
-  x[:] = date_scaler.transform(x)
+def date_norm(x, stock_code, date_scaler_list):
+  # for o,l,h,c use the same scaler
+  price_arr = x.iloc[:, :4].values.reshape(-1, 1)
+  price_scaler = MinMaxScaler((-1, 1))
+  price_scaler.fit(price_arr)
+  x.iloc[:, :4] = price_scaler.transform(price_arr).reshape(-1, 4)
+
+  # for v,a use the same scaler
+  va_scaler = MinMaxScaler((-1, 1))
+  va_scaler.fit(x.iloc[:, -2:])
+  x.iloc[:, -2:] = va_scaler.transform(x.iloc[:, -2:])
+  date_scaler_list.append({
+      'stock_code': stock_code,
+      'date': pd.to_datetime(x.index[0].date()),
+      'price_min': price_scaler.min_.item(),
+      'price_scale': price_scaler.scale_.item(),
+      'va_min': va_scaler.min_.tolist(),
+      'va_scale': va_scaler.scale_.tolist(),
+  })
   return x
 
 
-def norm_stock(stock_code, debug=False):
+def norm_stock(stock_code, wcsi_df, debug=False):
   """
     Args:
         input_path (str): directory to nasdaq dataset.
@@ -38,6 +57,7 @@ def norm_stock(stock_code, debug=False):
   debug=False
   """
   df_list = []
+  date_scaler_list = list()
   for fdir in csi_dir:
     tdf = pd.read_csv(
         fdir + wcsi_df.loc[stock_code, 'filename'],
@@ -48,10 +68,12 @@ def norm_stock(stock_code, debug=False):
     tdf.index = pd.to_datetime(
         tdf['date'] + ' ' + tdf['time'], format="%Y%m%d %H:%M")
     tdf = tdf.iloc[:, 2:]
-    tdf_norm = tdf.groupby(tdf.index.date).apply(date_norm)
+    tdf_norm = tdf.groupby(tdf.index.date).apply(
+        date_norm, stock_code=stock_code, date_scaler_list=date_scaler_list)
     df_list.append(tdf_norm)
   df = pd.concat(df_list)
   df.index.name = 'datetime'
+  col.insert_many(date_scaler_list)
   df.to_csv(norm_csi_dir + stock_code + '.csv')
   print(stock_code)
   return df
@@ -70,7 +92,7 @@ def gen_csi_norm():
           'filename': np.str
       })
   wcsi_df.index = wcsi_df['con_code']
-  wcsi_df.con_code.apply(norm_stock)
+  wcsi_df.con_code.apply(norm_stock, wcsi_df=wcsi_df)
 
 
 # Aggregate stocks files to one giant file
@@ -111,9 +133,10 @@ def gen_lag_pred_norm_csi300(tdf, lag_steps, pred_steps):
   train_df = tdf.groupby(level=0).apply(
       gen_stock_level, lag_steps=lag_steps, pred_steps=pred_steps)
   lag_columns = [
-      i + '_%d' % j for j in range(1, lag_steps) for i in tdf.columns
+      i + '_%d' % j for j in reversed(range(lag_steps)) for i in tdf.columns
   ]
-  lag_columns = list(tdf.columns) + lag_columns + ['c_gt']
+  lag_columns = lag_columns + ['c_gt']
+  train_df.columns = lag_columns
   train_df.to_csv(norm_csi_dir +
                   'csi300norm_lag%d_pred%d.csv' % (lag_steps, pred_steps))
 
