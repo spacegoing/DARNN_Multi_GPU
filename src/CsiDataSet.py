@@ -6,176 +6,117 @@ import pandas as pd
 import numpy as np
 from sklearn.preprocessing import MinMaxScaler
 
-wcsi_path = '../csi300/csi300_20150130.csv'
-wcsi_df = pd.read_csv(
-    wcsi_path,
-    dtype={
-        'date': np.str,
-        'con_code': np.str,
-        'weight': np.float,
-        'stock_code': np.str,
-        'mkt': np.str,
-        'filename': np.str
-    })
-wcsi_df.index = wcsi_df['con_code']
-csi_dir = '/project/chli/scp/CSI300_NORM/csi300norm.csv'
-csi_df = pd.read_csv(csi_dir)
-
-
-class PreprocDataset:
-
-  def init_dataset(self, X, Y, train_ratio, timesteps, pred_timesteps):
-    """
-    self.X_train_df, self.Y_train_df, self.Ygt_train_df
-    self.X_test_df, self.Y_test_df, self.Ygt_test_df
-    """
-    # normalize dataset
-    self.X_scaler, X, self.Y_scaler, Y = self.normalize_featmat(X, Y)
-
-    # split train test dataset
-    rows = X.shape[0]
-    train_size = int(rows * train_ratio)
-    X_train = X.iloc[:train_size, :]
-    X_test = X.iloc[train_size:, :]
-    Y_train = Y.iloc[:train_size, :]
-    Y_test = Y.iloc[train_size:, :]
-
-    # generate timeseries training data
-    self.X_train_df, self.Y_train_df, self.Ygt_train_df = self.gen_dataset(
-        X_train, Y_train, timesteps, pred_timesteps)
-    self.X_test_df, self.Y_test_df, self.Ygt_test_df = self.gen_dataset(
-        X_test, Y_test, timesteps, pred_timesteps)
-
-  def normalize_featmat(self, X_df, Y_df):
-    X_scaler = MinMaxScaler()
-    Y_scaler = MinMaxScaler()
-
-    X_scaler.fit(X_df)
-    Y_scaler.fit(Y_df)
-    return X_scaler, pd.DataFrame(
-        X_scaler.transform(X_df)), Y_scaler, pd.DataFrame(
-            Y_scaler.transform(Y_df))
-
-  def gen_dataset(self, X_df, Y_df, timesteps, pred_timesteps):
-    """
-    y_{t+pred_timesteps} = p(y_t,...,y_{timesteps-1}, x_t,...,x_{timesteps-1})
-
-    len = df.shape[0]
-    X_lag_df: (len-timesteps-pred_timesteps+1, feat_dim*timesteps)
-    Y_lag_df: (len-timesteps-pred_timesteps+1, feat_dim*timesteps)
-    Ygt_df: (len-timesteps-pred_timesteps+1, 1)
-
-    test:
-      txdf = pd.DataFrame(np.arange(100))
-      tydf = pd.DataFrame(np.arange(100,200))
-      X_df = txdf
-      Y_df = tydf
-    """
-
-    def get_lag_df(df, timesteps, pred_timesteps):
-      """
-      x_{timesteps-1},...,x_t totally `timesteps` x_i
-
-      -pred_timesteps sample won't have Ygt, so filtered out
-      """
-      df_col = [df.shift(i) for i in range(timesteps - 1, -1, -1)]
-      lag_df = pd.concat(df_col, axis=1).iloc[timesteps - 1:-pred_timesteps, :]
-      return lag_df
-
-    X_lag_df = get_lag_df(X_df, timesteps, pred_timesteps)
-    Y_lag_df = get_lag_df(Y_df, timesteps, pred_timesteps)
-
-    # -pred_timesteps sample won't have Ygt, so filtered out
-    Ygt_df = Y_df.shift(-pred_timesteps).iloc[timesteps - 1:-pred_timesteps, :]
-    return X_lag_df, Y_lag_df, Ygt_df
+lag_pred = [(10, 1), (10, 2), (10, 5), (15, 1), (15, 2), (15, 5), (20, 1),
+            (20, 2), (20, 5), (20, 10)]
+lag_steps, pred_steps = lag_pred[2]
 
 
 class Trainset(Dataset):
 
-  def __init__(self, pre_dataset: PreprocDataset, timesteps):
+  def __init__(self, csi_df, lag_steps):
     super().__init__()
-    self.X = pre_dataset.X_train_df
-    self.Y = pre_dataset.Y_train_df
-    self.Ygt = pre_dataset.Ygt_train_df
-    self.timesteps = timesteps
+
+    self.csi_df = csi_df
+
+    self.x_columns = [
+        i + '_%d' % j
+        for j in reversed(range(lag_steps))
+        for i in ['o', 'h', 'l', 'v', 'a']
+    ]
+    self.y_columns = ['c_%d' % i for i in reversed(range(lag_steps))]
+    self.lag_steps = lag_steps
 
   def __getitem__(self, idx):
-    return {
-        'X': self.get_np_mat(self.X, idx),
-        'Y': self.get_np_mat(self.Y, idx),
-        'Ygt': self.Ygt.iat[idx, 0]
+    d = {
+        'X': self.get_x_mat(idx),
+        'Y': self.get_y_mat(idx),
+        'Y_gt': self.csi_df.iloc[idx]['c_gt'],
+        'idx': idx
     }
+    return d
 
   def __len__(self):
-    return self.X.shape[0]
+    return self.csi_df.shape[0]
 
-  def get_np_mat(self, df, idx):
+  def get_x_mat(self, idx):
     '''
     reshape df (1, feat_dim * timesteps) -> (timesteps, feat_dim)
     '''
-    return df.iloc[idx].values.reshape(self.timesteps, -1)
+    return self.csi_df.iloc[idx].loc[self.x_columns].values.reshape(
+        self.lag_steps, -1).astype(np.float)
+
+  def get_y_mat(self, idx):
+    '''
+    reshape df (1, feat_dim * timesteps) -> (timesteps, feat_dim)
+    '''
+    return self.csi_df.iloc[idx].loc[self.y_columns].values.reshape(
+        self.lag_steps, -1).astype(np.float)
+
+  def get_idx_df_label(self, idx):
+    return self.csi_df.iloc[idx][['con_code', 'datetime']]
 
 
-class Nas100Dataset:
+class CSI300Dataset:
 
-  def get_data_loader(self, opt):
-    # train_ratio = 0.7
+  def __init__(self, opt):
+    csi_df = pd.read_csv(
+        opt.norm_csi_dir +
+        'csi300norm_lag%d_pred%d.csv.old' % (opt.lag_steps, opt.pred_steps),
+        nrows=1e6 if opt.debug else None)
+    # todo: temp columns fix
+    tmp_columns = ['con_code', 'datetime'] + [
+        i + '_%d' % j
+        for j in reversed(range(lag_steps))
+        for i in ['o', 'h', 'l', 'c', 'v', 'a']
+    ] + ['c_gt']
+    csi_df.columns = tmp_columns
+    self.csi_df = csi_df
+
+  def get_dataset_loader(self, opt):
     # timesteps = 9  # t, t-1, ... t-8
     # pred_timesteps = 1
     # batchsize = 128
-    X, Y = read_data("../nasdaq/nasdaq100_padding.csv", opt.debug)
-
-    train_ratio = opt.train_ratio
-    timesteps = opt.timesteps
-    pred_timesteps = opt.pred_timesteps
+    lag_steps = opt.lag_steps
     batchsize = opt.batchsize
     shuffle = opt.shuffle
     num_workers = opt.num_workers
     pin_memory = opt.pin_memory
+    dataset_split_ratio = opt.dataset_split_ratio
 
-    pre_dataset = PreprocDataset()
-    pre_dataset.init_dataset(X, Y, train_ratio, timesteps, pred_timesteps)
+    # split train valid test dataset
+    split_index_ser = self.csi_df.groupby(
+        'con_code')['datetime'].count().cumsum()
+    stocks_num = split_index_ser.shape[0]
+    train_index = split_index_ser.iloc[int(stocks_num * dataset_split_ratio[0])]
+    valid_index = split_index_ser.iloc[int(
+        stocks_num * sum(dataset_split_ratio[:2]))]
+    train_df = self.csi_df.iloc[:train_index]
+    valid_df = self.csi_df.iloc[train_index:valid_index]
+    test_df = self.csi_df.iloc[valid_index:]
 
-    # # recover normalized
-    # pre_dataset.X_scaler.inverse_transform(
-    #     pre_dataset.X_train_df.values[0].reshape(timesteps, -1))
-
-    train_dataset = Trainset(pre_dataset, timesteps)
-    train_loader = DataLoader(
-        train_dataset,
-        batch_size=batchsize,
-        shuffle=shuffle,
-        num_workers=num_workers,
-        pin_memory=pin_memory)
-
-    return pre_dataset, train_loader
+    train_dataset, valid_dataset, test_dataset = Trainset(
+        train_df, lag_steps), Trainset(valid_df, lag_steps), Trainset(
+            test_df, lag_steps)
+    train_loader, valid_loader, test_loader = [
+        DataLoader(
+            i,
+            batch_size=batchsize,
+            shuffle=shuffle,
+            num_workers=num_workers,
+            pin_memory=pin_memory)
+        for i in [train_dataset, valid_dataset, test_dataset]
+    ]
+    return train_dataset, valid_dataset, test_dataset, train_loader, valid_loader, test_loader
 
 
 if __name__ == "__main__":
-  train_ratio = 0.7
-  timesteps = 9  # t, t-1, ... t-8
-  pred_timesteps = 1
-  batchsize = 128
-
-  X, Y = read_data("../nasdaq/nasdaq100_padding.csv")
-  pre_dataset = PreprocDataset()
-  pre_dataset.init_dataset(X, Y, train_ratio, timesteps, pred_timesteps)
-
-  # recover normalized
-  pre_dataset.X_scaler.inverse_transform(
-      pre_dataset.X_train_df.values[0].reshape(timesteps, -1))
-
-  train_dataset = Trainset(pre_dataset, timesteps)
-  train_loader = DataLoader(
-      train_dataset,
-      batch_size=batchsize,
-      shuffle=False,
-      num_workers=1,
-      pin_memory=True)
-
+  from main import opt
+  csi300 = CSI300Dataset(opt)
+  train_dataset, valid_dataset, test_dataset, train_loader, valid_loader, test_loader = csi300.get_dataset_loader(
+      opt)
   for i, d in enumerate(train_loader):
-    if i % 100 == 0:
-      print(i)
+    if i % 100 == 0 and i != 0:
+      break
 
   # # double check
   # i=-1
@@ -188,7 +129,6 @@ if __name__ == "__main__":
   # for i in neq:
   #   print("%f %f" % (aaa[0,i], X.iloc[0,i]))
 
-  # opt.train_ratio = 0.7
   # opt.timesteps = 9
   # opt.pred_timesteps = 1
   # opt.batchsize = 128
