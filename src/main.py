@@ -37,9 +37,14 @@ parser = argparse.ArgumentParser(description="DA-RNN")
 
 # Dataset setting
 parser.add_argument(
+    '--norm_csi_dir',
+    type=str,
+    default='/project/chli/scp/CSI300_NORM/',
+    help='normalized csi300 csv dir')
+parser.add_argument(
     '--num_workers',
     type=int,
-    default=3,
+    default=12,
     help='number of data loading workers (default 3)')
 parser.add_argument(
     '--dataset_split_ratio',
@@ -55,12 +60,12 @@ parser.add_argument(
 parser.add_argument(
     '--hid_dim_encoder',
     type=int,
-    default=16,
+    default=32,
     help='size of hidden states for the encoder m [64, 128]')
 parser.add_argument(
     '--hid_dim_decoder',
     type=int,
-    default=16,
+    default=32,
     help='size of hidden states for the decoder p [64, 128]')
 parser.add_argument(
     '--lag_steps',
@@ -87,15 +92,16 @@ parser.add_argument(
     help='learning rate [0.001] reduced by 0.1 after each 10000 iterations')
 parser.add_argument('--seed', default=1, type=int, help='manual seed')
 parser.add_argument(
-    '--batchsize', type=int, default=128, help='input batch size [128]')
+    '--batchsize', type=int, default=512, help='input batch size [128]')
 parser.add_argument('--shuffle', type=bool, default=True, help='shuffle batch')
 opt = parser.parse_args('')
 
 if __name__ == "__main__":
   # import os
   # os.environ['CUDA_VISIBLE_DEVICES'] = '0'
+  opt.num_workers = 16
 
-  csi300 = CSI300Dataset()
+  # csi300 = CSI300Dataset(opt)
   train_dataset, valid_dataset, test_dataset, \
     train_loader, valid_loader, test_loader = csi300.get_dataset_loader(
       opt)
@@ -107,9 +113,9 @@ if __name__ == "__main__":
   # device = ('cpu')
   # Multi-GPU Support
   device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-  # if torch.cuda.device_count() > 1:
-  #   encoder = nn.DataParallel(encoder)
-  #   decoder = nn.DataParallel(decoder)
+  if torch.cuda.device_count() > 1:
+    encoder = nn.DataParallel(encoder)
+    decoder = nn.DataParallel(decoder)
   encoder.to(device)
   decoder.to(device)
 
