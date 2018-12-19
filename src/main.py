@@ -5,7 +5,7 @@ import argparse
 import numpy as np
 import pandas as pd
 from DARNN import Encoder, Decoder
-from PrepareData import Nas100Dataset
+from CsiDataSet import CSI300Dataset
 
 
 def set_seed(seed=1):
@@ -37,20 +37,15 @@ parser = argparse.ArgumentParser(description="DA-RNN")
 
 # Dataset setting
 parser.add_argument(
-    '--dataroot',
-    type=str,
-    default="../nasdaq/nasdaq100_padding.csv",
-    help='path to dataset')
-parser.add_argument(
     '--num_workers',
     type=int,
-    default=1,
-    help='number of data loading workers [2]')
+    default=3,
+    help='number of data loading workers (default 3)')
 parser.add_argument(
-    '--batchsize', type=int, default=128, help='input batch size [128]')
-parser.add_argument(
-    '--train_ratio', type=float, default=0.7, help='train set ratio')
-parser.add_argument('--shuffle', type=bool, default=False, help='shuffle batch')
+    '--dataset_split_ratio',
+    default=[0.8, 0.1, 0.1],
+    type=list,
+    help='train, valid, test dataset split ratio')
 parser.add_argument(
     '--pin_memory', type=bool, default=True, help='pin memory page')
 parser.add_argument(
@@ -60,24 +55,23 @@ parser.add_argument(
 parser.add_argument(
     '--hid_dim_encoder',
     type=int,
-    default=128,
+    default=16,
     help='size of hidden states for the encoder m [64, 128]')
 parser.add_argument(
     '--hid_dim_decoder',
     type=int,
-    default=128,
+    default=16,
     help='size of hidden states for the decoder p [64, 128]')
 parser.add_argument(
-    '--timesteps',
+    '--lag_steps',
     type=int,
-    default=9,
-    help='the number of time steps in the window T [9]')
+    default=10,
+    help='the number of lag time steps (history window length T)')
 parser.add_argument(
-    '--pred_timesteps',
+    '--pred_steps',
     type=int,
-    default=1,
-    help=
-    'y_{t+pred_timesteps} = p(y_t,...,y_{timesteps-1}, x_t,...,x_{timesteps-1})'
+    default=5,
+    help='y_{t+pred_steps} = p(y_t,...,y_{timesteps-1}, x_t,...,x_{timesteps-1})'
 )
 
 # Training parameters setting
@@ -92,18 +86,23 @@ parser.add_argument(
     default=0.001,
     help='learning rate [0.001] reduced by 0.1 after each 10000 iterations')
 parser.add_argument('--seed', default=1, type=int, help='manual seed')
+parser.add_argument(
+    '--batchsize', type=int, default=128, help='input batch size [128]')
+parser.add_argument('--shuffle', type=bool, default=True, help='shuffle batch')
+opt = parser.parse_args('')
 
 if __name__ == "__main__":
   # import os
   # os.environ['CUDA_VISIBLE_DEVICES'] = '0'
-  opt = parser.parse_args('')
 
-  dataset = Nas100Dataset()
-  pre_dataset, train_loader = dataset.get_data_loader(opt)
-  feat_dim = 81
+  csi300 = CSI300Dataset()
+  train_dataset, valid_dataset, test_dataset, \
+    train_loader, valid_loader, test_loader = csi300.get_dataset_loader(
+      opt)
+  feat_dim = 5
 
-  encoder = Encoder(opt.timesteps, feat_dim, opt.hid_dim_encoder)
-  decoder = Decoder(opt.timesteps, opt.hid_dim_encoder, opt.hid_dim_decoder)
+  encoder = Encoder(opt.lag_steps, feat_dim, opt.hid_dim_encoder)
+  decoder = Decoder(opt.lag_steps, opt.hid_dim_encoder, opt.hid_dim_decoder)
 
   # device = ('cpu')
   # Multi-GPU Support
@@ -127,7 +126,7 @@ if __name__ == "__main__":
       # Prepare Data On Devices
       X = data_dict['X'].type(torch.FloatTensor).to(device)
       Y = data_dict['Y'].type(torch.FloatTensor).squeeze().to(device)
-      Ygt = data_dict['Ygt'].type(torch.FloatTensor).to(device)
+      Ygt = data_dict['Y_gt'].type(torch.FloatTensor).to(device)
 
       # Forward Pass
       H = encoder(X)
@@ -152,3 +151,5 @@ if __name__ == "__main__":
 
     print(batch_loss_list)
     epoch_batch_loss_list.append(batch_loss_list)
+
+    break
