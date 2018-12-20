@@ -98,9 +98,20 @@ def gen_csi_norm():
 # Aggregate stocks files to one giant file
 def concat_stockcsvfiles_to_onecsi():
   df_list = []
+  wcsi_df = pd.read_csv(
+      wcsi_path,
+      dtype={
+          'date': np.str,
+          'con_code': np.str,
+          'weight': np.float,
+          'stock_code': np.str,
+          'mkt': np.str,
+          'filename': np.str
+      })
+  wcsi_df.index = wcsi_df['con_code']
 
   def read_stock(con_code):
-    tdf = pd.read_csv(csi_dir + con_code + '.csv', index_col='datetime')
+    tdf = pd.read_csv(norm_csi_dir + con_code + '.csv', index_col='datetime')
     df_list.append(tdf)
 
   wcsi_df['con_code'].apply(read_stock)
@@ -143,12 +154,13 @@ def gen_lag_pred_norm_csi300(tdf, lag_steps, pred_steps):
 
 if __name__ == "__main__":
   # Generate Training Set
-  lag_pred = [(10, 1), (10, 2), (10, 5), (15, 1), (15, 2), (15, 5), (20, 1),
-              (20, 2), (20, 5), (20, 10)]
-  lag_steps, pred_steps = lag_pred[0]
-  tdf = pd.read_csv(
-      norm_csi_dir + 'csi300norm.csv',
-      parse_dates=['datetime']).set_index(['con_code', 'datetime'])
-  # pdf = tdf.loc[['000156.SZ', '601318.SH']]
-  # gen_lag_pred_norm_csi300(pdf, lag_steps, pred_steps)
-  gen_lag_pred_norm_csi300(tdf, lag_steps, pred_steps)
+  # lag_pred = [(10, 1), (10, 2), (10, 5), (15, 1), (15, 2), (15, 5), (20, 1),
+  #             (20, 2), (20, 5), (20, 10)]
+  # lag_steps, pred_steps = lag_pred[0]
+  # tdf = pd.read_csv(
+  #     norm_csi_dir + 'csi300norm.csv',
+  #     parse_dates=['datetime']).set_index(['con_code', 'datetime'])
+  # # pdf = tdf.loc[['000156.SZ', '601318.SH']]
+  # # gen_lag_pred_norm_csi300(pdf, lag_steps, pred_steps)
+  # gen_lag_pred_norm_csi300(tdf, lag_steps, pred_steps)
+  gen_csi_norm()
