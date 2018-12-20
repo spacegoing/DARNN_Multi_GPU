@@ -6,6 +6,7 @@ import numpy as np
 import pandas as pd
 from DARNN import Encoder, Decoder
 from CsiDataSet import CSI300Dataset
+from tensorboardX import SummaryWriter
 
 
 def set_seed(seed=1):
@@ -51,6 +52,16 @@ parser.add_argument(
     default=[0.8, 0.1, 0.1],
     type=list,
     help='train, valid, test dataset split ratio')
+parser.add_argument(
+    '--x_columns',
+    default=['o', 'h', 'l', 'v', 'a'],
+    type=list,
+    help='list of features\' (X) column names')
+parser.add_argument(
+    '--y_columns',
+    default=['c'],
+    type=list,
+    help='list of target (Y) column names')
 parser.add_argument(
     '--pin_memory', type=bool, default=True, help='pin memory page')
 parser.add_argument(
@@ -99,9 +110,13 @@ opt = parser.parse_args('')
 if __name__ == "__main__":
   # import os
   # os.environ['CUDA_VISIBLE_DEVICES'] = '0'
+  opt.debug = True
+  writer = SummaryWriter()
   opt.num_workers = 16
+  opt.hid_dim_decoder = 64
+  opt.hid_dim_encoder = 64
 
-  # csi300 = CSI300Dataset(opt)
+  csi300 = CSI300Dataset(opt)
   train_dataset, valid_dataset, test_dataset, \
     train_loader, valid_loader, test_loader = csi300.get_dataset_loader(
       opt)
@@ -147,8 +162,9 @@ if __name__ == "__main__":
       decoder_optimizer.step()
 
       # Log Stats
-      batch_loss_list.append(loss.item())
-      if n_batches_count % 50000 == 0:
+      if n_batches_count % 10 == 0:
+        writer.add_scalar('train/loss', loss.item(), n_batches_count)
+      if n_batches_count % 5000 == 0:
         for p in encoder_optimizer.param_groups:
           p['lr'] *= 0.9
         for p in decoder_optimizer.param_groups:
@@ -157,5 +173,3 @@ if __name__ == "__main__":
 
     print(batch_loss_list)
     epoch_batch_loss_list.append(batch_loss_list)
-
-    break

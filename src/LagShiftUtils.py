@@ -17,6 +17,7 @@ class DateRolling:
     self.pred_steps = pred_steps
     self.win_len = lag_steps + pred_steps
     self.be_index_arr = self.get_be_index_bydate()
+    self.num_samples = self.be_index_arr.shape[0]
 
   def get_be_index_bydate(self):
     '''
@@ -57,8 +58,8 @@ class DateRolling:
   def get_sample_by_index(self, idx):
     be_idx = self.be_index_arr[idx]
     return {
-        'X': df.iloc[be_idx:be_idx + self.lag_steps],
-        'Y': df.iloc[be_idx + self.win_len - 1]
+        'X': self.df.iloc[be_idx:be_idx + self.lag_steps],
+        'Y': self.df.iloc[be_idx + self.win_len - 1]
     }
 
 
