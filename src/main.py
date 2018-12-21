@@ -4,9 +4,10 @@ import torch
 import argparse
 import numpy as np
 import pandas as pd
+from tensorboardX import SummaryWriter
 from DARNN import Encoder, Decoder
 from CsiDataSet import CSI300Dataset
-from tensorboardX import SummaryWriter
+from VerParams import Version
 
 
 def set_seed(seed=1):
@@ -92,9 +93,11 @@ parser.add_argument(
 
 # Training parameters setting
 parser.add_argument(
+    '--param_version', type=int, default=None, help='int versioning params')
+parser.add_argument(
     '--epochs',
     type=int,
-    default=80,
+    default=10,
     help='number of epochs to train [10, 200, 500]')
 parser.add_argument(
     '--lr',
@@ -105,16 +108,25 @@ parser.add_argument('--seed', default=1, type=int, help='manual seed')
 parser.add_argument(
     '--batchsize', type=int, default=512, help='input batch size [128]')
 parser.add_argument('--shuffle', type=bool, default=True, help='shuffle batch')
+
+# debug
+parse_cli = True
 opt = parser.parse_args('')
+if parse_cli:
+  opt = parser.parse_args()
 
 if __name__ == "__main__":
+  # debug
+  # from importlib import reload
+  opt.debug = True
+  opt.num_workers = 16
+
   # import os
   # os.environ['CUDA_VISIBLE_DEVICES'] = '0'
-  opt.debug = True
-  writer = SummaryWriter()
-  opt.num_workers = 16
-  opt.hid_dim_decoder = 64
-  opt.hid_dim_encoder = 64
+  ver = Version()
+  ver.set_ver_opt(opt.param_version, opt)
+  suffix = 'L%dP%dHdim%d' % (opt.lag_steps, opt.pred_steps, opt.hid_dim_encoder)
+  writer = SummaryWriter(comment=suffix, filename_suffix=suffix)
 
   csi300 = CSI300Dataset(opt)
   train_dataset, valid_dataset, test_dataset, \
@@ -162,9 +174,9 @@ if __name__ == "__main__":
       decoder_optimizer.step()
 
       # Log Stats
-      if n_batches_count % 10 == 0:
+      if n_batches_count % 100 == 0:
         writer.add_scalar('train/loss', loss.item(), n_batches_count)
-      if n_batches_count % 5000 == 0:
+      if n_batches_count % 50000 == 0:
         for p in encoder_optimizer.param_groups:
           p['lr'] *= 0.9
         for p in decoder_optimizer.param_groups:

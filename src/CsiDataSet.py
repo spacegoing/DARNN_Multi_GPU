@@ -6,10 +6,6 @@ import numpy as np
 import pandas as pd
 from LagShiftUtils import DateRolling
 
-lag_pred = [(10, 1), (10, 2), (10, 5), (15, 1), (15, 2), (15, 5), (20, 1),
-            (20, 2), (20, 5), (20, 10)]
-lag_steps, pred_steps = lag_pred[2]
-
 
 class Trainset(Dataset):
 
