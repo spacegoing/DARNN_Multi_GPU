@@ -118,7 +118,7 @@ if parse_cli:
 if __name__ == "__main__":
   # debug
   # from importlib import reload
-  opt.debug = True
+  opt.debug = False
   opt.num_workers = 16
 
   # import os
@@ -132,7 +132,7 @@ if __name__ == "__main__":
   train_dataset, valid_dataset, test_dataset, \
     train_loader, valid_loader, test_loader = csi300.get_dataset_loader(
       opt)
-  feat_dim = 5
+  feat_dim = len(opt.x_columns)
 
   encoder = Encoder(opt.lag_steps, feat_dim, opt.hid_dim_encoder)
   decoder = Decoder(opt.lag_steps, opt.hid_dim_encoder, opt.hid_dim_decoder)
