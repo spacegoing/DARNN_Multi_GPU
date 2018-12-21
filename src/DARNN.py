@@ -32,11 +32,9 @@ class Encoder(nn.Module):
 
     # Construct Input Attention Mechanism via deterministic attention model
     # Eq. 8: W_e[h_{t-1}; s_{t-1}] + U_e * x^k
-    self.attn = nn.Linear(
-        in_features=2 * self.hid_dim + self.timesteps,
-        out_features=1,
-        bias=True)
-
+    self.attn = nn.Sequential(
+        nn.Linear(2 * hid_dim + timesteps, feat_dim), nn.Tanh(),
+        nn.Linear(feat_dim, 1))
     self.device = device
     self.count = 0
 
@@ -64,11 +62,10 @@ class Encoder(nn.Module):
     for t in range(self.timesteps):
       # (batch_size, feat_dim, (2*hidden_size + timesteps))
       # tensor.expand: do not copy data; -1 means no changes at that dim
-      x = torch.cat(
-          (h.expand(self.feat_dim, -1, -1).permute(1, 0, 2),
-           s.expand(self.feat_dim, -1, -1).permute(1, 0, 2), X.permute(0, 2,
-                                                                       1)),
-          dim=2)
+      x = torch.cat((h.expand(self.feat_dim, -1, -1).permute(1, 0, 2),
+                     s.expand(self.feat_dim, -1, -1).permute(1, 0, 2),
+                     X.permute(0, 2, 1)),
+                    dim=2)
       # (batch_size, feat_dim, 1)
       e = self.attn(x)
 
@@ -138,10 +135,9 @@ class Decoder(nn.Module):
     for t in range(self.timesteps):
 
       # (batchsize, timesteps, 2*timesteps + feat_dim)
-      x = torch.cat(
-          (d_n.expand(self.timesteps, -1, -1).permute(1, 0, 2),
-           c_n.expand(self.timesteps, -1, -1).permute(1, 0, 2), H),
-          dim=2)
+      x = torch.cat((d_n.expand(self.timesteps, -1, -1).permute(1, 0, 2),
+                     c_n.expand(self.timesteps, -1, -1).permute(1, 0, 2), H),
+                    dim=2)
 
       # (batchsize, timesteps)
       beta = F.softmax(self.attn(x).squeeze(), dim=1)
