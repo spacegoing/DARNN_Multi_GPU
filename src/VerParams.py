@@ -3,7 +3,7 @@ class Version:
 
   def __init__(self):
     lag_pred = [(10, 1), (10, 2), (10, 5), (15, 1), (15, 2), (15, 5), (20, 1),
-                (20, 2), (20, 5), (20, 10)]
+                (20, 2), (20, 5), (20, 10), (25, 1)]
     # cannot have hid_dim and (hid_dim_decoder, hid_dim_encoder)
     # at the same time
     self.version_dict = {
@@ -35,6 +35,18 @@ class Version:
             # (10, 1) 64
             'lag_steps': lag_pred[0][0],
             'pred_steps': lag_pred[0][1],
+            'hid_dim': 64
+        },
+        6: {
+            # (20, 1) 64
+            'lag_steps': lag_pred[6][0],
+            'pred_steps': lag_pred[6][1],
+            'hid_dim': 64
+        },
+        7: {
+            # (25, 1) 64
+            'lag_steps': lag_pred[10][0],
+            'pred_steps': lag_pred[10][1],
             'hid_dim': 64
         }
     }
