@@ -122,7 +122,6 @@ class Decoder(nn.Module):
     self.fc_final = nn.Linear(hid_dim + feat_dim, 1)
 
     # todo remove
-    self.fc.weight.data.normal_()
     self.count = 0
 
   def forward(self, H, Y):

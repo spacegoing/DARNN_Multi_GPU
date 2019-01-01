@@ -3,7 +3,6 @@ from __future__ import print_function, division
 import torch
 import argparse
 import numpy as np
-import pandas as pd
 from tensorboardX import SummaryWriter
 from DARNN import Encoder, Decoder
 from CsiDataSet import CSI300Dataset
@@ -32,7 +31,6 @@ set_seed()
 
 from torch import nn
 from torch import optim
-import torch.nn.functional as F
 
 # Parameters settings
 parser = argparse.ArgumentParser(description="DA-RNN")
@@ -118,7 +116,7 @@ if parse_cli:
 if __name__ == "__main__":
   # debug
   # from importlib import reload
-  opt.debug = False
+  opt.debug = not parse_cli
   opt.num_workers = 16
 
   # import os
@@ -126,7 +124,7 @@ if __name__ == "__main__":
   ver = Version()
   ver.set_ver_opt(opt.param_version, opt)
   suffix = 'L%dP%dHdim%d' % (opt.lag_steps, opt.pred_steps, opt.hid_dim_encoder)
-  writer = SummaryWriter(comment=suffix, filename_suffix=suffix)
+  writer = SummaryWriter(comment=suffix)
 
   csi300 = CSI300Dataset(opt)
   train_dataset, valid_dataset, test_dataset, \
