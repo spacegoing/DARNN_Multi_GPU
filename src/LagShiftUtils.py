@@ -77,4 +77,4 @@ if __name__ == '__main__':
   pred_steps = 5
 
   # df.to_csv(norm_csi_dir + 'csi300norm.csv.sorted')
-  df_roller = DateRolling(df, 20, 3)
+  df_roller = DateRolling(df, lag_steps, pred_steps)
