@@ -83,3 +83,56 @@ if __name__ == '__main__':
 
   # df.to_csv(norm_csi_dir + 'csi300norm.csv.sorted')
   df_roller = DateRolling(df, lag_steps, pred_steps)
+
+  # # Dev Multi Indicators
+  # stock_date_g  = df.groupby(
+  #     [df.index.get_level_values(0),
+  #      df.index.get_level_values(1).date])
+  # for key, df in stock_date_g:
+  #   break
+
+  # Dev Multi Indicators
+  index_df = pd.read_csv('test_multi_indicator.csv')
+  index_df.columns.values[1] = 'date'
+  index_df.set_index(['con_code', 'date'], inplace=True)
+
+  win_len = lag_steps + pred_steps
+
+  def df_apply(x):
+
+    def date_fn(x):
+      count = x['count']
+      be = x['date_be']
+      # todo: add self
+      date_num = count - win_len + 1
+      # check whether win_len greater than date's num of samples
+      if date_num < 0:
+        raise ValueError(
+            str(x.name) + ' has %d samples, ' % count +
+            'less than window length (lag_steps + pred_steps) %d' % self.win_len
+        )
+      # main function: generate oldest lag_step's row index in df
+      idx_arr = np.arange(be, be + date_num)
+      return pd.Series(idx_arr)
+
+    # date_df is MultiIndexed by (con_code, date, integer)
+    date_df = x.apply(date_fn, axis=1).stack()
+    # remove con_code (added automatically by outer apply fn)
+    # and integer index
+    date_df.index = date_df.index.droplevel([0, 2])
+    return date_df
+
+  # multi-index (con_code, date): be_index
+  be_index_arr = index_df.groupby(level=0).apply(df_apply)
+
+  idx_list = list()
+  for idx, (count, be) in index_df.iterrows():
+    date_num = count - win_len + 1
+    # check whether win_len greater than date's num of samples
+    if date_num < 0:
+      raise ValueError(
+          str(idx) + ' has %d samples, ' % count +
+          'less than window length (lag_steps + pred_steps) %d' % self.win_len)
+    # main function: generate oldest lag_step's row index in df
+    idx_arr = np.arange(be, be + date_num)
+    idx_list.append(idx_arr)
