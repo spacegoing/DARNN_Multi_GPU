@@ -27,17 +27,22 @@ class DateRolling:
     '''
 
     # per stock per date: how many minutes it contains
-    def stock_group_func(df):
-      return df.groupby(df.index.get_level_values(1).date).size()
-
-    stock_date_count_ser = self.df.iloc[:, 0].groupby(
-        level=0).apply(stock_group_func)
+    # multiindex (con_code, date)
+    stock_date_count_ser = self.df.groupby(
+        [df.index.get_level_values(0),
+         df.index.get_level_values(1).date]).size()
+    stock_date_count_ser.name = 'count'
 
     # per stock per date: the first minute's index in `df`
+    # multiindex (con_code, date)
     date_begin_idx_ser = stock_date_count_ser.cumsum() - stock_date_count_ser
+    date_begin_idx_ser.name = 'date_be'
 
-    def calc_index_arr(stock_date_count_ser, date_begin_idx_ser):
-      index_df = pd.concat([stock_date_count_ser, date_begin_idx_ser], axis=1)
+    # multiindex (con_code, date): count, date_be
+    index_df = pd.concat([stock_date_count_ser, date_begin_idx_ser], axis=1)
+    index_df.index.set_names('date', level=1, inplace=True)
+
+    def calc_index_arr(index_df):
       idx_list = list()
       for idx, (count, be) in index_df.iterrows():
         date_num = count - self.win_len + 1
@@ -52,7 +57,7 @@ class DateRolling:
         idx_list.append(idx_arr)
       return np.concatenate(idx_list)
 
-    be_index_arr = calc_index_arr(stock_date_count_ser, date_begin_idx_ser)
+    be_index_arr = calc_index_arr(index_df)
     return be_index_arr
 
   def get_sample_by_index(self, idx):
@@ -65,7 +70,7 @@ class DateRolling:
 
 if __name__ == '__main__':
   norm_csi_dir = '/project/chli/scp/CSI300_NORM/'
-  debug = False
+  debug = True
 
   df = pd.read_csv(
       norm_csi_dir + 'csi300norm.csv',
