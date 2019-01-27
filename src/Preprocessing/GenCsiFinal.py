@@ -60,11 +60,11 @@ def calc_ta(date_price_df):
   return date_price_ta_df
 
 
-def split_norm_save_perstock_df(df, stock_code):
+def split_norm_save_perstock_df(df, con_code):
   '''
   df must not contain any NaNs
   df = pd.read_csv('000156.csv', parse_dates=['datetime'], index_col='datetime')
-  stock_code = '000156'
+  con_code = '000156'
   '''
   split_index_ser = df.iloc[:, 0].groupby(df.index.date).count().cumsum()
   stocks_num = split_index_ser.shape[0]
@@ -100,7 +100,7 @@ def split_norm_save_perstock_df(df, stock_code):
       train_ta_df, valid_ta_df, test_ta_df)
 
   def save_proced_df(raw_df, norm_df, ta_df, ta_norm_df, stock_norm_meta_df,
-                     stock_ta_norm_meta_df, stock_code, mode):
+                     stock_ta_norm_meta_df, con_code, mode):
     '''
     mode = train valid test
     '''
@@ -109,23 +109,23 @@ def split_norm_save_perstock_df(df, stock_code):
       dir_id = 2
     if mode == 'test':
       dir_id = 4
-    raw_df.to_csv(proced_csi_dir[dir_id] + stock_code + '.csv')
-    ta_df.to_csv(proced_csi_dir[dir_id] + stock_code + '_ta.csv')
-    norm_df.to_csv(proced_csi_dir[dir_id + 1] + stock_code + '_norm.csv')
-    ta_norm_df.to_csv(proced_csi_dir[dir_id + 1] + stock_code + '_ta_norm.csv')
+    raw_df.to_csv(proced_csi_dir[dir_id] + con_code + '.csv')
+    ta_df.to_csv(proced_csi_dir[dir_id] + con_code + '_ta.csv')
+    norm_df.to_csv(proced_csi_dir[dir_id + 1] + con_code + '_norm.csv')
+    ta_norm_df.to_csv(proced_csi_dir[dir_id + 1] + con_code + '_ta_norm.csv')
 
     if mode == 'train':
-      stock_norm_meta_df.to_csv(proced_csi_dir[dir_id + 1] + stock_code +
+      stock_norm_meta_df.to_csv(proced_csi_dir[dir_id + 1] + con_code +
                                 '_norm_meta.csv')
-      stock_ta_norm_meta_df.to_csv(proced_csi_dir[dir_id + 1] + stock_code +
+      stock_ta_norm_meta_df.to_csv(proced_csi_dir[dir_id + 1] + con_code +
                                    '_ta_norm_meta.csv')
 
   save_proced_df(train_df, train_norm_df, train_ta_df, train_ta_norm_df,
-                 stock_norm_meta_df, stock_ta_norm_meta_df, stock_code, 'train')
+                 stock_norm_meta_df, stock_ta_norm_meta_df, con_code, 'train')
   save_proced_df(valid_df, valid_norm_df, valid_ta_df, valid_ta_norm_df,
-                 stock_norm_meta_df, stock_ta_norm_meta_df, stock_code, 'valid')
+                 stock_norm_meta_df, stock_ta_norm_meta_df, con_code, 'valid')
   save_proced_df(test_df, test_norm_df, test_ta_df, test_ta_norm_df,
-                 stock_norm_meta_df, stock_ta_norm_meta_df, stock_code, 'test')
+                 stock_norm_meta_df, stock_ta_norm_meta_df, con_code, 'test')
 
 
 def norm_stock(ser, debug=False):
@@ -141,8 +141,8 @@ def norm_stock(ser, debug=False):
   date_time_parser = lambda x: pd.to_datetime(x, format="%Y%m%d %H:%M")
 
   df_list = []
-  stock_code = ser.loc['stock_code']
-  print('start ' + stock_code)
+  con_code = ser.loc['con_code']
+  print('start ' + con_code)
   for fdir in raw_csi_dir:
     tdf = pd.read_csv(
         fdir + ser.loc['filename'],
@@ -155,8 +155,8 @@ def norm_stock(ser, debug=False):
     df_list.append(tdf)
   df = pd.concat(df_list)
   df.index.name = 'datetime'
-  split_norm_save_perstock_df(df, stock_code)
-  print('end ' + stock_code)
+  split_norm_save_perstock_df(df, con_code)
+  print('end ' + con_code)
 
 
 # Generate CSI300 Normalized Dataset
@@ -167,7 +167,7 @@ def gen_csi_norm():
           'date': np.str,
           'con_code': np.str,
           'weight': np.float,
-          'stock_code': np.str,
+          'con_code': np.str,
           'mkt': np.str,
           'filename': np.str
       })
@@ -179,13 +179,13 @@ if __name__ == '__main__':
 
   gen_csi_norm()
   # check data
-  stock_code = '603993'
+  con_code = '603993.SH'
   dir_id = 0
 
-  raw_df = pd.read_csv(proced_csi_dir[dir_id] + stock_code + '.csv')
-  ta_df = pd.read_csv(proced_csi_dir[dir_id] + stock_code + '_ta.csv')
-  norm_df = pd.read_csv(proced_csi_dir[dir_id + 1] + stock_code + '_norm.csv')
-  ta_norm_df = pd.read_csv(proced_csi_dir[dir_id + 1] + stock_code +
+  raw_df = pd.read_csv(proced_csi_dir[dir_id] + con_code + '.csv')
+  ta_df = pd.read_csv(proced_csi_dir[dir_id] + con_code + '_ta.csv')
+  norm_df = pd.read_csv(proced_csi_dir[dir_id + 1] + con_code + '_norm.csv')
+  ta_norm_df = pd.read_csv(proced_csi_dir[dir_id + 1] + con_code +
                           '_ta_norm.csv')
   df_list = [raw_df, ta_df, norm_df, ta_norm_df]
   for i in df_list:
@@ -194,7 +194,7 @@ if __name__ == '__main__':
       print(i.isna().sum())
 
   if dir_id == 0:
-    norm_meta_df = pd.read_csv(proced_csi_dir[dir_id + 1] + stock_code +
+    norm_meta_df = pd.read_csv(proced_csi_dir[dir_id + 1] + con_code +
                               '_norm_meta.csv')
-    ta_norm_meta_df = pd.read_csv(proced_csi_dir[dir_id + 1] + stock_code +
+    ta_norm_meta_df = pd.read_csv(proced_csi_dir[dir_id + 1] + con_code +
                                   '_ta_norm_meta.csv')
