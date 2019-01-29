@@ -70,15 +70,25 @@ class DateRolling:
       # check whether win_len greater than date's num of samples
       if date_num < 0:
         if ind_steps:
-          raise ValueError(
+          print(
               str(idx) + ' has %d samples, ' % count +
               'less than window length (ind_steps + lag_steps-1 + pred_steps) %d'
               % self.ind_win_len)
         else:
-          raise ValueError(
+          print(
               str(idx) + ' has %d samples, ' % count +
               'less than window length (lag_steps + pred_steps) %d' %
               self.win_len)
+
+        # some stocks > +-10% have invalid ta indicators due to Chinese
+        # market rules
+        # df = pd.read_csv(
+        #     proced_csi_dir[0] + '603993.SH' + '_ta_norm.csv',
+        #     index_col='datetime',
+        #     parse_dates=['datetime'])
+        # df['2015-07-13']
+
+        continue
       # main function: generate oldest lag_step's row index in df
       idx_arr = np.arange(be, be + date_num)
       idx_list.append(idx_arr)
