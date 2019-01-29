@@ -85,12 +85,12 @@ parser.add_argument(
 parser.add_argument(
     '--lag_steps',
     type=int,
-    default=10,
+    default=20,
     help='the number of lag time steps (history window length T)')
 parser.add_argument(
     '--pred_steps',
     type=int,
-    default=5,
+    default=1,
     help='y_{t+pred_steps} = p(y_t,...,y_{timesteps-1}, x_t,...,x_{timesteps-1})'
 )
 
@@ -117,7 +117,7 @@ parser.add_argument(
     '--pred_type', default='shift', type=str, help='steps or shift')
 
 # debug
-parse_cli = True
+parse_cli = False
 opt = parser.parse_args('')
 if parse_cli:
   opt = parser.parse_args()
@@ -125,8 +125,8 @@ if parse_cli:
 if __name__ == "__main__":
   # debug
   # from importlib import reload
-  opt.debug = not parse_cli
-  opt.num_workers = 16
+  opt.debug = False
+  opt.num_workers = 20
 
   # import os
   # os.environ['CUDA_VISIBLE_DEVICES'] = '0'
@@ -135,11 +135,11 @@ if __name__ == "__main__":
   suffix = 'L%dP%dHdim%d' % (opt.lag_steps, opt.pred_steps, opt.hid_dim_encoder)
   writer = SummaryWriter(comment=suffix)
 
-  csi300 = CSI300Dataset(opt)
+  csi300 = CSI300Dataset()
   train_dataset, valid_dataset, test_dataset, \
     train_loader, valid_loader, test_loader = csi300.get_dataset_loader(
       opt)
-  feat_dim = len(opt.x_columns)
+  feat_dim = 13
 
   encoder = Encoder(opt.lag_steps, feat_dim, opt.hid_dim_encoder)
   decoder = Decoder(opt.lag_steps, opt.hid_dim_encoder, opt.hid_dim_decoder)

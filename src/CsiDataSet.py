@@ -2,7 +2,6 @@
 from torch.utils.data import Dataset, DataLoader
 # todo: torch must be imported first, otherwise segmentation fault
 # do not know why ver: 0.4.0
-import numpy as np
 import pandas as pd
 from LagShiftUtils import DateRolling
 
@@ -20,6 +19,9 @@ class Trainset(Dataset):
     self.opt = opt
 
   def __getitem__(self, idx):
+    '''
+    Y and X have to be same shape. so ['c'] rather than 'c'
+    '''
     sample = self.roller.get_sample_by_index(idx)
     return {
         'X':
@@ -93,6 +95,9 @@ class MultiTaskTrainset(Dataset):
     self.opt = opt
 
   def __getitem__(self, idx):
+    '''
+    Y and X have to be same shape. so ['c'] rather than 'c'
+    '''
     sample = self.roller.get_std_sample_by_index(idx)
     return {
         'X_trend':
@@ -100,16 +105,18 @@ class MultiTaskTrainset(Dataset):
             .loc[:, sample.columns.difference(['c', 'std', 'multi_target'])]
             .values[:self.opt.lag_steps],
         'Y_trend':
-            sample.loc[:, 'c'].values[:self.opt.lag_steps],
+            sample.loc[:, ['c']].values[:self.opt.lag_steps],
         'Y_gt_trend':
             sample.loc[:, 'c'].iloc[-1].item(),
         'X_volat':
             sample.loc[:, sample.columns.difference(['std', 'multi_target'])]
             .values[:self.opt.lag_steps],
         'Y_volat':
-            sample.loc[:, 'std'].values[:self.opt.lag_steps],
+            sample.loc[:, ['std']].values[:self.opt.lag_steps],
         'Y_gt_volat':
             sample.loc[:, 'std'].iloc[-1].item(),
+        'Y_multi':
+            sample.loc[:, ['multi_target']].values[:self.opt.lag_steps],
         'Y_gt_multi':
             sample.loc[:, 'multi_target'].iloc[-1].item(),
         'idx':
