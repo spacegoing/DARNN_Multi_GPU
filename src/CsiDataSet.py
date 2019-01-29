@@ -110,7 +110,8 @@ class MultiTaskTrainset(Dataset):
         'Y_gt_trend':
             sample.loc[:, 'c'].iloc[-1].item(),
         'X_volat':
-            sample.loc[:, sample.columns.difference(['std', 'multi_target'])]
+            sample
+            .loc[:, sample.columns.difference(['c', 'std', 'multi_target'])]
             .values[:self.opt.lag_steps],
         'Y_volat':
             sample.loc[:, 'std'].values[:self.opt.lag_steps],
