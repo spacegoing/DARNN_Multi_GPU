@@ -187,6 +187,13 @@ if __name__ == "__main__":
   optimizer_list[-1].append(optimizer_list[0][0])
   optimizer_list[-1].append(optimizer_list[1][0])
 
+  task_model_list = [[trend_encoder, trend_decoder],
+                     [volat_encoder, volat_decoder],
+                     [
+                         multi_encoder, multi_decoder, trend_encoder,
+                         volat_encoder
+                     ]]
+
   # define task forward
   def task_forward(task_id, multi_list, data_dict):
     if task_id == 0:  # trend task
@@ -204,7 +211,9 @@ if __name__ == "__main__":
       H = multi_list[2][0](X_multi)
       Ypred = multi_list[2][1](H, data_dict['Y_multi'])
       loss = criterion(Ypred.squeeze(), data_dict['Y_gt_multi'])
-
+    if loss.item() != loss.item():
+      import ipdb
+      ipdb.set_trace(context=7)
     return loss
 
   # Train Loops
@@ -229,7 +238,10 @@ if __name__ == "__main__":
 
       # Gradient Descent
       loss.backward()
-      # todo: rescale_gradients()
+
+      # clip and norm gradient to prevent nans
+      for model in multi_list[task_id]:
+        torch.nn.utils.clip_grad_norm_(model.parameters(), 5.0)
       for o in optimizers:
         o.step()
 
