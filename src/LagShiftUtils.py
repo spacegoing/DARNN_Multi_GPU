@@ -109,7 +109,7 @@ class DateRolling:
     multi_target = (raw_df['c'].diff(self.pred_steps) >= 0).astype(int)
     std = raw_df['c'].rolling(self.ind_steps).std()
     norm_std = (std - std.mean()) / std.std()
-    ind_df = raw_df.assign(std=norm_std)
+    raw_df = raw_df.assign(std=norm_std)
     ind_df = raw_df.assign(multi_target=multi_target)
     return ind_df.iloc[self.ind_steps - 1:]
 
