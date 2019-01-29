@@ -71,14 +71,14 @@ class DateRolling:
       if date_num < 0:
         if ind_steps:
           raise ValueError(
-            str(idx) + ' has %d samples, ' % count +
-            'less than window length (ind_steps + lag_steps-1 + pred_steps) %d'
-            % self.ind_win_len)
+              str(idx) + ' has %d samples, ' % count +
+              'less than window length (ind_steps + lag_steps-1 + pred_steps) %d'
+              % self.ind_win_len)
         else:
           raise ValueError(
               str(idx) + ' has %d samples, ' % count +
-              'less than window length (lag_steps + pred_steps) %d' % self.win_len
-          )
+              'less than window length (lag_steps + pred_steps) %d' %
+              self.win_len)
       # main function: generate oldest lag_step's row index in df
       idx_arr = np.arange(be, be + date_num)
       idx_list.append(idx_arr)
@@ -91,16 +91,21 @@ class DateRolling:
     return self.df.iloc[be_idx:be_idx + self.win_len]
 
   def get_std_sample_by_index(self, idx):
+    if ind_steps < 1:
+      raise ValueError('this is multi task sample, ind_steps must > 0')
     be_idx = self.be_index_arr[idx]
     raw_df = self.df.iloc[be_idx:be_idx + self.ind_win_len]
+    # todo: ['c'] coupling with csi dataset
+    multi_target = (raw_df['c'].diff(self.pred_steps) >= 0).astype(int)
     std = raw_df['c'].rolling(self.ind_steps).std()
-    norm_std = (std - std.mean())/std.std()
+    norm_std = (std - std.mean()) / std.std()
     ind_df = raw_df.assign(std=norm_std)
+    ind_df = raw_df.assign(multi_target=multi_target)
     return ind_df.iloc[self.ind_steps - 1:]
 
 
 if __name__ == '__main__':
-  debug = False
+  debug = True
 
   proced_csi_dir = [
       '/project/chli/dataset_csi300/train_norm/',
@@ -112,7 +117,7 @@ if __name__ == '__main__':
 
   df = pd.read_csv(
       path + 'csi300_norm.csv',
-      nrows=1e7 if debug else None,
+      nrows=1e6 if debug else None,
       parse_dates=['datetime'],
       index_col=['con_code', 'datetime'])
 
@@ -126,7 +131,6 @@ if __name__ == '__main__':
   pred_steps = 5
   ind_steps = 10
 
-  # df.to_csv(norm_csi_dir + 'csi300norm.csv.sorted')
   df_roller = DateRolling(df, lag_steps, pred_steps)
   ind_df_roller = DateRolling(df, lag_steps, pred_steps, ind_steps)
   print(df_roller.get_sample_by_index(0))
