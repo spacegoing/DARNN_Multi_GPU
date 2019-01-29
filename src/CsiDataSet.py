@@ -32,6 +32,31 @@ class Trainset(Dataset):
     return self.roller.get_sample_by_index(idx)
 
 
+class MultiTaskTrainset(Dataset):
+  '''
+  input df: norm_csi (origin input without indicators)
+  task_type: 'multi'
+  '''
+
+  def __init__(self, csi_df, opt):
+    super().__init__()
+
+    self.csi_df = csi_df
+    self.roller = DateRolling(csi_df, opt.lag_steps, opt.pred_steps,
+                              opt.ind_steps)
+    self.opt = opt
+
+  def __getitem__(self, idx):
+    sample_df = self.roller.get_std_sample_by_index(idx)
+    return {'sample_df': sample_df, 'idx': idx}
+
+  def __len__(self):
+    return self.roller.num_samples
+
+  def get_idx_df(self, idx):
+    return self.roller.get_std_sample_by_index(idx)
+
+
 class CSI300Dataset:
 
   def __init__(self, opt):

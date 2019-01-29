@@ -78,6 +78,11 @@ parser.add_argument(
     default=32,
     help='size of hidden states for the decoder p [64, 128]')
 parser.add_argument(
+    '--ind_steps',
+    type=int,
+    default=0,
+    help='window length for computing indicator')
+parser.add_argument(
     '--lag_steps',
     type=int,
     default=10,
@@ -106,6 +111,10 @@ parser.add_argument('--seed', default=1, type=int, help='manual seed')
 parser.add_argument(
     '--batchsize', type=int, default=512, help='input batch size [128]')
 parser.add_argument('--shuffle', type=bool, default=True, help='shuffle batch')
+parser.add_argument(
+    '--task_type', default='single', type=str, help='single or multi')
+parser.add_argument(
+    '--pred_type', default='shift', type=str, help='steps or shift')
 
 # debug
 parse_cli = True
