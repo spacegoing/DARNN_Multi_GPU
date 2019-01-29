@@ -101,7 +101,7 @@ class DateRolling:
     return self.df.iloc[be_idx:be_idx + self.win_len]
 
   def get_std_sample_by_index(self, idx):
-    if ind_steps < 1:
+    if self.ind_steps < 1:
       raise ValueError('this is multi task sample, ind_steps must > 0')
     be_idx = self.be_index_arr[idx]
     raw_df = self.df.iloc[be_idx:be_idx + self.ind_win_len]
