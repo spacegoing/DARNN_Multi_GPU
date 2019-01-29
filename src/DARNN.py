@@ -8,8 +8,6 @@ import torch.nn.functional as F
 DEBUG = False
 test_dir = '/home/chli4934/UsydCodeLab/phd/MrfEvent/OldCode/src/test/'
 
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-
 
 class Encoder(nn.Module):
   """encoder in DARNN.
@@ -35,7 +33,6 @@ class Encoder(nn.Module):
     self.attn = nn.Sequential(
         nn.Linear(2 * hid_dim + timesteps, feat_dim), nn.Tanh(),
         nn.Linear(feat_dim, 1))
-    self.device = device
     self.count = 0
 
   def forward(self, X):
