@@ -111,11 +111,16 @@ class DateRolling:
     norm_std = (std - std.mean()) / std.std()
     raw_df = raw_df.assign(std=norm_std)
     ind_df = raw_df.assign(multi_target=multi_target)
-    return ind_df.iloc[self.ind_steps - 1:]
+    # return ind_df.iloc[self.ind_steps - 1:]
+    res_df = ind_df.iloc[self.ind_steps - 1:]
+    with pd.option_context('mode.use_inf_as_null', True):
+      if res_df.isnull().any().any():
+        raise ValueError('%dth sample contains nan std' % idx)
+    return res_df
 
 
 if __name__ == '__main__':
-  debug = True
+  debug = False
 
   proced_csi_dir = [
       '/project/chli/dataset_csi300/train_norm/',
@@ -143,6 +148,8 @@ if __name__ == '__main__':
 
   df_roller = DateRolling(df, lag_steps, pred_steps)
   ind_df_roller = DateRolling(df, lag_steps, pred_steps, ind_steps)
+  # [10526753,  6263866, 30462130] nan
+  ind_df_roller.get_std_sample_by_index(10526753)
   print(df_roller.get_sample_by_index(0))
   print(ind_df_roller.get_std_sample_by_index(0))
   print(ind_df_roller.get_std_sample_by_index(206))

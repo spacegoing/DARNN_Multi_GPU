@@ -4,6 +4,7 @@ from torch.utils.data import Dataset, DataLoader
 # do not know why ver: 0.4.0
 import pandas as pd
 from LagShiftUtils import DateRolling
+import nonechucks as nc
 
 
 class Trainset(Dataset):
@@ -159,8 +160,12 @@ class CSI300MultiTaskDataset:
     train_dataset, valid_dataset, test_dataset = MultiTaskTrainset(
         train_df, opt), MultiTaskTrainset(valid_df, opt), MultiTaskTrainset(
             test_df, opt)
+    train_dataset, valid_dataset, test_dataset = [
+        nc.SafeDataset(i) for i in [train_dataset, valid_dataset, test_dataset]
+    ]
     train_loader, valid_loader, test_loader = [
-        DataLoader(
+        # DataLoader(
+        nc.SafeDataLoader(
             i,
             batch_size=batchsize,
             shuffle=shuffle,
