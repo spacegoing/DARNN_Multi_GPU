@@ -4,7 +4,7 @@ import torch
 import argparse
 import numpy as np
 from tensorboardX import SummaryWriter
-from DARNN import Encoder, Decoder
+from DARNN import Encoder, Decoder, ClassDecoder
 from CsiDataSet import CSI300MultiTaskDataset
 from VerParams import Version
 
@@ -159,7 +159,7 @@ if __name__ == "__main__":
   volat_decoder = Decoder(opt.lag_steps, opt.hid_dim_encoder,
                           opt.hid_dim_decoder)
   multi_encoder = Encoder(opt.lag_steps, multi_feat_dim, opt.hid_dim_encoder)
-  multi_decoder = Decoder(opt.lag_steps, opt.hid_dim_encoder,
+  multi_decoder = ClassDecoder(opt.lag_steps, opt.hid_dim_encoder,
                           opt.hid_dim_decoder)
   multi_list = [[trend_encoder, trend_decoder],
                 [volat_encoder, volat_decoder],
@@ -176,7 +176,8 @@ if __name__ == "__main__":
     encoder.to(device)
     decoder.to(device)
 
-  criterion = nn.MSELoss()
+  mse_criterion = nn.MSELoss()
+  nll_criterion = nn.NLLLoss()
   optimizer_list = list()
   for encoder, decoder in multi_list:
     encoder_optimizer = optim.Adam(encoder.parameters(), lr=opt.lr)
@@ -199,18 +200,18 @@ if __name__ == "__main__":
     if task_id == 0:  # trend task
       H = multi_list[0][0](data_dict['X_trend'])
       Ypred = multi_list[0][1](H, data_dict['Y_trend'])
-      loss = criterion(Ypred.squeeze(), data_dict['Y_gt_trend'])
+      loss = mse_criterion(Ypred.squeeze(), data_dict['Y_gt_trend'])
     elif task_id == 1:
       H = multi_list[1][0](data_dict['X_volat'])
       Ypred = multi_list[1][1](H, data_dict['Y_volat'])
-      loss = criterion(Ypred.squeeze(), data_dict['Y_gt_volat'])
+      loss = mse_criterion(Ypred.squeeze(), data_dict['Y_gt_volat'])
     else:
       H_trend = multi_list[0][0](data_dict['X_trend'])
       H_volat = multi_list[1][0](data_dict['X_volat'])
       X_multi = torch.cat([data_dict['X_trend'], H_trend, H_volat], -1)
       H = multi_list[2][0](X_multi)
       Ypred = multi_list[2][1](H, data_dict['Y_multi'])
-      loss = criterion(Ypred.squeeze(), data_dict['Y_gt_multi'])
+      loss = nll_criterion(Ypred.squeeze(), data_dict['Y_gt_multi'].long())
     if loss.item() != loss.item():
       import ipdb
       ipdb.set_trace(context=7)

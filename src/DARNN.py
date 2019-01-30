@@ -179,6 +179,87 @@ class Decoder(nn.Module):
     return initial_state
 
 
+class ClassDecoder(nn.Module):
+  """decoder in DA_RNN."""
+
+  def __init__(self, timesteps, feat_dim, hid_dim):
+    """Initialize a decoder in DA_RNN.
+    feat_dim: encoder hidden state dim
+    """
+    super(ClassDecoder, self).__init__()
+    self.hid_dim = hid_dim
+    # todo: timesteps = T-1 in zhen code
+    self.timesteps = timesteps
+
+    self.attn = nn.Sequential(
+        nn.Linear(2 * hid_dim + feat_dim, feat_dim), nn.Tanh(),
+        nn.Linear(feat_dim, 1))
+    self.lstm = nn.LSTM(input_size=1, hidden_size=hid_dim, batch_first=True)
+    self.fc = nn.Linear(feat_dim + 1, 1)
+    self.fc_final = nn.Linear(hid_dim + feat_dim, 2)
+
+    # todo remove
+    self.count = 0
+
+  def forward(self, H, Y):
+    """forward."""
+    d_n = self._init_state(H)
+    c_n = self._init_state(H)
+
+    # todo debug
+    self.count += 1
+    for t in range(self.timesteps):
+
+      # (batchsize, timesteps, 2*timesteps + feat_dim)
+      x = torch.cat((d_n.expand(self.timesteps, -1, -1).permute(1, 0, 2),
+                     c_n.expand(self.timesteps, -1, -1).permute(1, 0, 2), H),
+                    dim=2)
+
+      # (batchsize, timesteps)
+      beta = F.softmax(self.attn(x).squeeze(), dim=1)
+      # Eqn. 14: compute context vector
+      # (batchsize, feat_dim)
+      context = torch.bmm(beta.unsqueeze(1), H).squeeze()
+      # Eqn. 15
+      # batch_size * 1
+      y_tilde = self.fc(torch.cat((context, Y[:, t].unsqueeze(1)), dim=1))
+
+      # todo debug
+      if DEBUG and True and self.count == 3:
+        # test equalty
+        np.save(test_dir + 'new_ytilde', y_tilde.detach().numpy())
+        import ipdb
+        ipdb.set_trace(context=7)
+
+      # Eqn. 16: LSTM
+      self.lstm.flatten_parameters()
+      _, final_states = self.lstm(y_tilde.unsqueeze(1), (d_n, c_n))
+      # 1 * batch_size * hid_dim
+      d_n = final_states[0]
+      # 1 * batch_size * hid_dim
+      c_n = final_states[1]
+    # Eqn. 22: final output
+    # todo: two linear functions
+    logits = self.fc_final(torch.cat((d_n[0], context), dim=1))
+    output = F.log_softmax(logits, dim=1)
+
+    return output
+
+  def _init_state(self, X):
+    """Initialize all 0 hidden states and cell states for encoder.
+
+        Args:
+            X
+        Returns:
+            initial_hidden_states
+
+        """
+    # hidden state and cell state [num_layers*num_directions, batch_size, hidden_size]
+    # https://pytorch.org/docs/master/nn.html?#lstm
+    initial_state = X.new_zeros([1, X.shape[0], self.hid_dim])
+    return initial_state
+
+
 if __name__ == "__main__":
   # from importlib import reload
   from main import opt
